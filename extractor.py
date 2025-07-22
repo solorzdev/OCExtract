@@ -55,23 +55,85 @@ def extraer_valor_simple(texto, etiqueta):
 
 def extraer_datos(texto):
     datos = {}
-
     datos['rfc'] = extraer_valor_simple(texto, 'RFC: ')
-    datos['fecha_emision'] = extraer_valor_simple(texto, 'GUADALAJARA , JALISCO A ')
-    
-    # Después de capturar el valor
-    datos['razon_social'] = extraer_valor_simple(texto, 'Denominación/RazónSocial:')
-    datos['regimen_capital'] = extraer_valor_simple(texto, 'RégimenCapital:')
-    datos['nombre_comercial'] = extraer_valor_simple(texto, 'NombreComercial:')
-    
+    datos['fecha_emision'] = extraer_fecha_emision(texto)
+
+    # Lógica simple: si encuentra razon_social, es empresa
+    razon_social = extraer_valor_simple(texto, 'Denominación/RazónSocial:')
+    if razon_social:
+        datos['tipo_contribuyente'] = 'empresa'
+        datos['razon_social'] = razon_social
+        datos['regimen_capital'] = extraer_valor_simple(texto, 'RégimenCapital:')
+        datos['nombre_comercial'] = extraer_valor_simple(texto, 'NombreComercial:')
+        datos['nombre'] = None
+        datos['apellido_paterno'] = None
+        datos['apellido_materno'] = None
+    else:
+        datos['tipo_contribuyente'] = 'persona'
+        datos['razon_social'] = None
+        datos['regimen_capital'] = None
+        datos['nombre_comercial'] = None
+        datos['nombre'] = extraer_campo_regex(texto, r'Nombre\s*\(s\)\s*:')
+        datos['apellido_paterno'] = extraer_valor_simple(texto, 'PrimerApellido:')
+        datos['apellido_materno'] = extraer_valor_simple(texto, 'SegundoApellido:')
+
     datos['estatus_padron'] = extraer_valor_simple(texto, 'Estatusenelpadrón:')
     datos['codigo_postal'] = extraer_codigo_postal(texto)
 
-    if any(valor is None for valor in datos.values()):
-        print("⚠️ Faltan datos:", datos)
+    if datos['rfc'] is None or datos['fecha_emision'] is None:
+        print("⚠️ Faltan datos esenciales:", datos)
         return None
 
     return datos
+
+def extraer_campo_regex(texto, etiqueta):
+    patron = re.compile(rf'{etiqueta}\s*(.*)', re.IGNORECASE)
+    match = patron.search(texto)
+    if match:
+        valor = match.group(1).strip()
+        fin = valor.find('\n')
+        if fin != -1:
+            valor = valor[:fin].strip()
+        return valor
+    return None
+
+def extraer_fecha_emision(texto):
+    # Busca luego de "Lugar y Fecha de Emisión" (permitiendo cualquier lugar antes)
+    patron = r'Lugar y Fecha de Emisión\s+.*?A\s+(\d{2} DE [A-ZÑÁÉÍÓÚ]+ DE \d{4})'
+    match = re.search(patron, texto, re.IGNORECASE)
+
+    if match:
+        fecha_texto = match.group(1).strip()
+        # Opcional: convertir a formato dd/mm/yyyy
+        fecha_texto = normalizar_fecha(fecha_texto)
+        return fecha_texto
+
+    return None
+
+def normalizar_fecha(fecha_texto):
+    meses = {
+        'ENERO': '01',
+        'FEBRERO': '02',
+        'MARZO': '03',
+        'ABRIL': '04',
+        'MAYO': '05',
+        'JUNIO': '06',
+        'JULIO': '07',
+        'AGOSTO': '08',
+        'SEPTIEMBRE': '09',
+        'OCTUBRE': '10',
+        'NOVIEMBRE': '11',
+        'DICIEMBRE': '12'
+    }
+
+    partes = fecha_texto.upper().split(' DE ')
+    if len(partes) == 3:
+        dia = partes[0].zfill(2)
+        mes = meses.get(partes[1], '01')
+        anio = partes[2]
+        return f"{dia}/{mes}/{anio}"
+
+    return fecha_texto  # Devuelve sin cambios si no pudo normalizar
 
 def extraer_codigo_postal(texto):
     indice = texto.find('CódigoPostal:')

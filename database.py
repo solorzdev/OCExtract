@@ -15,17 +15,23 @@ def guardar_datos(datos):
     cursor = conexion.cursor()
 
     sql = """
-        INSERT INTO constancias (rfc, fecha_emision, razon_social, regimen_capital, 
-                                 nombre_comercial, estatus_padron, codigo_postal)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO constancias (tipo_contribuyente, rfc, fecha_emision, razon_social,
+                                 regimen_capital, nombre_comercial,
+                                 nombre, apellido_paterno, apellido_materno,
+                                 estatus_padron, codigo_postal)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     valores = (
+        datos['tipo_contribuyente'],
         datos['rfc'],
         datos['fecha_emision'],
-        datos['razon_social'],
-        datos['regimen_capital'],
-        datos['nombre_comercial'],
+        datos.get('razon_social'),
+        datos.get('regimen_capital'),
+        datos.get('nombre_comercial'),
+        datos.get('nombre'),
+        datos.get('apellido_paterno'),
+        datos.get('apellido_materno'),
         datos['estatus_padron'],
         datos['codigo_postal']
     )

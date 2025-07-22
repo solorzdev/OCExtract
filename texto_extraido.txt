@@ -1,57 +1,36 @@
 CÉDULA DE IDENTIFICACIÓN FISCAL
 CONSTANCIA DE SITUACIÓN FISCAL
-SPC130227L99
+SORO02101041A
 Registro Federal de Contribuyentes
-SECRETARIA DE LA HACIENDA
-PUBLICA Lugar y Fecha de Emisión
-Nombre, denominación o razón GUADALAJARA , JALISCO A 08 DE AGOSTO DE 2024
+OCTAVIO SOLORZANO
+ROBLERO Lugar y Fecha de Emisión
+Nombre, denominación o razón EL PORVENIR , CHIAPAS A 21 DE JULIO DE 2025
 social
-idCIF: 14091470816
+idCIF: 23030354691
 VALIDA TU INFORMACIÓN
 FISCAL
-SPC130227L99
+SORO02101041A
 Datos de Identificación del Contribuyente:
-RFC: SPC130227L99
-Denominación/RazónSocial: SECRETARIADELAHACIENDAPUBLICA
-RégimenCapital: SINTIPODESOCIEDAD
-NombreComercial: SECRETARIADELAHACIENDAPUBLICA
-Fechainiciodeoperaciones: 01DEMARZODE2013
+RFC: SORO02101041A
+CURP: SORO021010HCSLBCA3
+Nombre(s): OCTAVIO
+PrimerApellido: SOLORZANO
+SegundoApellido: ROBLERO
+Fechainiciodeoperaciones: 21DEMARZODE2023
 Estatusenelpadrón: ACTIVO
-Fechadeúltimocambiodeestado: 19DEDICIEMBREDE2013
+Fechadeúltimocambiodeestado: 21DEMARZODE2023
+NombreComercial:
 Datos del domicilio registrado
-CódigoPostal:44100 TipodeVialidad:CALLE
-NombredeVialidad:PEDROMORENO NúmeroExterior:281
-NúmeroInterior: NombredelaColonia:GUADALAJARACENTRO
-NombredelaLocalidad:GUADALAJARA NombredelMunicipiooDemarcaciónTerritorial:GUADALAJARA
-NombredelaEntidadFederativa:JALISCO EntreCalle: CALLECORONA
-YCalle:CALLEMAESTRANZA
-Actividades Económicas:
-Página [1] de [3]
-Orden Actividad Económica Porcentaje Fecha Inicio Fecha Fin
-1 Administraciónpúblicaestatalengeneral 100 01/03/2013
+CódigoPostal:30970 TipodeVialidad:CALLE
+NombredeVialidad:SANJOSELASPILAS NúmeroExterior:SINNUMERO
+NúmeroInterior:SINNUMERO NombredelaColonia:CENTRO
+NombredelaLocalidad:ELPORVENIR NombredelMunicipiooDemarcaciónTerritorial:ELPORVENIR
+NombredelaEntidadFederativa:CHIAPAS EntreCalle: SINNOMBRE
+Página [1] de [2]
+YCalle:SINNOMBRE
 Regímenes:
 Régimen Fecha Inicio Fecha Fin
-Personas Morales con Fines no Lucrativos 01/03/2013
-Obligaciones:
-Descripción de la Obligación Descripción Vencimiento Fecha Inicio Fecha Fin
-Entero de retenciones mensuales de ISR por sueldos y salarios A más tardar el día 17 del mes inmediato 01/03/2013
-posterioralperiodoquecorresponda.
-Declaración informativa anual de pagos y retenciones de Amástardarel15defebrerodelañosiguiente 01/03/2013
-servicios profesionales. Personas Morales. Impuesto Sobre la
-Renta
-declaración informativa anual de retenciones de ISR por Amástardarel15defebrerodelañosiguiente 01/03/2013
-arrendamiento de inmuebles
-Entero mensual de retenciones de ISR de ingresos por Conjuntamente con la retención por salarios o 01/03/2013
-arrendamiento. asimilados a salarios (17 de cada mes en su
-defecto)
-Entero de retención de ISR por servicios profesionales. A más tardar el día 17 del mes inmediato 01/03/2013
-MENSUAL posterioralperiodoquecorresponda.
-Declaración Informativa mensual de Proveedores El día 17 del mes siguiente a aquél al que 01/03/2013
-corresponda
-Entero de retenciones de IVA Mensual A más tardar el día 17 del mes inmediato 01/03/2013
-posterioralperiodoquecorresponda.
-Entero de retenciones mensuales de ISR por ingresos asimiladosA más tardar el día 17 del mes inmediato 01/03/2013
-a salarios posterioralperiodoquecorresponda.
+Sin obligaciones fiscales 21/03/2023
 SusdatospersonalessonincorporadosyprotegidosenlossistemasdelSAT,deconformidadconlosLineamientosdeProteccióndeDatos
 Personales y con diversas disposiciones fiscales y legales sobre confidencialidad y protección de datos, a fin de ejercer las facultades
 conferidasalaautoridadfiscal.
@@ -59,8 +38,7 @@ Si desea modificar o corregir sus datos personales, puede acudir a cualquier Mó
 http://sat.gob.mx
 "Lacorrupcióntieneconsecuencias¡denúnciala!Siconocesalgúnposibleactodecorrupciónodelitopresentaunaquejaodenunciaatravés
 de:www.sat.gob.mx,denuncias@sat.gob.mx,desdeMéxico:(55)88522222,desdeelextranjero:+5588522222,SATmóvilowww.gob.mx/sfp".
-CadenaOriginalSello: ||2024/08/08|SPC130227L99|CONSTANCIA DE SITUACIÓN FISCAL|200001088888800000031||
-SelloDigital: gk8U0bZULsu9JoLroGLw+HcyozY15MvYkzMgXE1G//hwDPogTo4kROh35+EoyJD49ML2/3Gfppkc4ylcwUgnVvJ
-q7vEpxBBnjj7JzDmN5+oFqI0STrAHcMPqbb5prhQzlw5WBMvsXykuZ4BHyV3DlAEEB5Vl4YhG7dxNbkLVdZ8=
-Página [2] de [3]
-Página [3] de [3]
+CadenaOriginalSello: ||2025/07/21|SORO02101041A|CONSTANCIA DE SITUACIÓN FISCAL|200001088888800000031||
+SelloDigital: p5tgdZ+WFVqbWbQqU9XWuXI6nE32H+vkkqFRFmv3QwUy+eu8DgnV9yLCfup4AfuUGqvM85tttby2Mp4qAluVT
+QgsiwECTSlsJRnSMirNMrif5Kn7a3Hs0CPR2IkKJ9jwlI++EJ5gHuBGM2soVjiKOle5ggt/ivFvAT88M/UCz2k=
+Página [2] de [2]
