@@ -4,6 +4,7 @@ import cv2
 import pdfplumber
 import re
 import os
+import datetime
 
 def extraer_texto_pdf(ruta_pdf):
     texto = ''
@@ -74,6 +75,7 @@ def extraer_datos(texto):
         datos['regimen_capital'] = None
         datos['nombre_comercial'] = None
         datos['nombre'] = extraer_campo_regex(texto, r'Nombre\s*\(s\)\s*:')
+        datos['curp'] = extraer_valor_simple(texto, 'CURP:')
         datos['apellido_paterno'] = extraer_valor_simple(texto, 'PrimerApellido:')
         datos['apellido_materno'] = extraer_valor_simple(texto, 'SegundoApellido:')
 
@@ -168,4 +170,6 @@ def procesar_archivo(ruta_archivo):
         f.write(texto)
 
     datos = extraer_datos(texto)
+    datos['archivo_origen'] = os.path.basename(ruta_archivo)
+    datos['fecha_procesado'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     return datos
