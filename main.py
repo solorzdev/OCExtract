@@ -4,14 +4,17 @@ import logging
 from extractor import procesar_archivo
 from database import guardar_datos
 
+os.makedirs('logs', exist_ok=True) 
+LOG_PATH = 'logs/procesamiento.log'
+logging.basicConfig(filename=LOG_PATH, level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+
 RUTA_ENTRADA = 'pendientes'
 RUTA_PROCESADOS = 'procesados'
 RUTA_ERRORES = 'errores'
-LOG_PATH = 'logs/procesamiento.log'
 EXT_VALIDAS = {'.pdf', '.jpg', '.jpeg', '.png', '.tif', '.tiff'}
-
-logging.basicConfig(filename=LOG_PATH, level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 def mover_archivo(origen, destino):
     os.makedirs(destino, exist_ok=True)
