@@ -1,6 +1,8 @@
+# Importación para conexión con la base de datos
 import mysql.connector
 from config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
 
+# Configuración de la conexión 
 def conectar():
     return mysql.connector.connect(
         host=DB_HOST,
@@ -10,6 +12,7 @@ def conectar():
         port=DB_PORT
     )
 
+# Configuración para guardar los datos 
 def guardar_datos(datos):
     conexion = conectar()
     cursor = conexion.cursor()
