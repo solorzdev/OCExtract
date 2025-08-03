@@ -74,13 +74,51 @@ def extraer_campo_regex(texto, etiqueta):
         return valor
     return None
 
-# === Fecha de emisión y normalización ===
+
 def extraer_fecha_emision(texto):
-    patron = r'Lugar y Fecha de Emisión\s+.*?A\s+(\d{2} DE [A-ZÑÁÉÍÓÚ]+ DE \d{4})'
-    match = re.search(patron, texto, re.IGNORECASE)
+    lineas = texto.splitlines()
+    meses = {
+        'ENERO': '01', 'FEBRERO': '02', 'MARZO': '03',
+        'ABRIL': '04', 'MAYO': '05', 'JUNIO': '06',
+        'JULIO': '07', 'AGOSTO': '08', 'SEPTIEMBRE': '09',
+        'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
+    }
+
+    # 1. Multilínea: "A 07 DE" + siguiente línea "ENERO DE 2020"
+    for i in range(len(lineas) - 1):
+        l1 = lineas[i].strip()
+        if re.search(r'A \d{1,2} DE$', l1):
+            dia = re.search(r'A (\d{1,2}) DE$', l1).group(1).zfill(2)
+            for j in range(1, 4):
+                l2 = lineas[i + j].strip()
+                match2 = re.match(r'^([A-ZÑÁÉÍÓÚ]+) DE (\d{4})$', l2, re.IGNORECASE)
+                if match2:
+                    mes = meses.get(match2.group(1).upper(), '01')
+                    anio = match2.group(2)
+                    return f"{dia}/{mes}/{anio}"
+
+    # 2. Todo en una línea
+    for l in lineas:
+        match = re.search(r'A (\d{1,2}) DE ([A-ZÑÁÉÍÓÚ]+) DE (\d{4})', l, re.IGNORECASE)
+        if match:
+            dia = match.group(1).zfill(2)
+            mes = meses.get(match.group(2).upper(), '01')
+            anio = match.group(3)
+            return f"{dia}/{mes}/{anio}"
+
+    # 3. Texto unido tolerante a ruido entre "A 07 DE" y "ENERO DE 2020"
+    texto_unido = texto.replace('\n', ' ')
+    match = re.search(
+        r'A (\d{1,2}) DE .*? ([A-ZÑÁÉÍÓÚ]+) DE (\d{4})',
+        texto_unido,
+        re.IGNORECASE
+    )
     if match:
-        fecha_texto = match.group(1).strip()
-        return normalizar_fecha(fecha_texto)
+        dia = match.group(1).zfill(2)
+        mes = meses.get(match.group(2).upper(), '01')
+        anio = match.group(3)
+        return f"{dia}/{mes}/{anio}"
+
     return None
 
 def normalizar_fecha(fecha_texto):
@@ -119,6 +157,9 @@ def extraer_datos(texto):
         datos['razon_social'] = razon_social
         datos['regimen_capital'] = extraer_valor_simple(texto, 'RégimenCapital:')
         datos['nombre_comercial'] = extraer_valor_simple(texto, 'NombreComercial:')
+        if datos['nombre_comercial'] == '':
+            datos['nombre_comercial'] = None
+
         datos['nombre'] = None
         datos['apellido_paterno'] = None
         datos['apellido_materno'] = None
@@ -128,6 +169,9 @@ def extraer_datos(texto):
         datos['regimen_capital'] = None
         datos['nombre_comercial'] = None
         datos['nombre'] = extraer_campo_regex(texto, r'Nombre\s*\(s\)\s*:')
+        if datos['nombre'] and ' ' not in datos['nombre']:
+            datos['nombre'] = ' '.join(n.upper() for n in segment(datos['nombre'].lower()))
+
         datos['curp'] = extraer_valor_simple(texto, 'CURP:')
         datos['apellido_paterno'] = extraer_valor_simple(texto, 'PrimerApellido:')
         datos['apellido_materno'] = extraer_valor_simple(texto, 'SegundoApellido:')
