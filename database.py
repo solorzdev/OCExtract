@@ -12,6 +12,15 @@ def conectar():
         port=DB_PORT
     )
 
+def existe_rfc(rfc):
+    conexion = conectar()
+    cursor = conexion.cursor()
+    cursor.execute("SELECT 1 FROM constancias WHERE rfc = %s LIMIT 1", (rfc,))
+    existe = cursor.fetchone() is not None
+    cursor.close()
+    conexion.close()
+    return existe
+
 # Configuración para guardar los datos 
 def guardar_datos(datos):
     conexion = conectar()

@@ -8,7 +8,7 @@ import datetime
 import shutil
 import logging
 from wordsegment import load, segment
-from database import guardar_datos
+from database import guardar_datos, existe_rfc
 
 # === Configuración de logs ===
 os.makedirs('logs', exist_ok=True)
@@ -150,7 +150,7 @@ def extraer_datos(texto):
 
     razon_social = extraer_valor_simple(texto, 'Denominación/RazónSocial:')
     if razon_social:
-        datos['tipo_contribuyente'] = 'empresa'
+        datos['tipo_contribuyente'] = 'MORAL'
         datos['razon_social'] = razon_social
         datos['regimen_capital'] = extraer_valor_simple(texto, 'RégimenCapital:')
         datos['nombre_comercial'] = extraer_valor_simple(texto, 'NombreComercial:')
@@ -160,7 +160,7 @@ def extraer_datos(texto):
         datos['apellido_paterno'] = None
         datos['apellido_materno'] = None
     else:
-        datos['tipo_contribuyente'] = 'persona'
+        datos['tipo_contribuyente'] = 'FISICA'
         datos['razon_social'] = None
         datos['regimen_capital'] = None
         datos['nombre_comercial'] = None
@@ -204,22 +204,30 @@ def procesar_archivo(ruta_archivo):
         if datos:
             datos['archivo_origen'] = archivo
             datos['fecha_procesado'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # 📌 Verificación de RFC duplicado
+            if existe_rfc(datos['rfc']):
+                print(f"   ⚠️ RFC duplicado, se mueve a errores: {datos['rfc']}")
+                logging.warning(f"Duplicado detectado para RFC {datos['rfc']}, no se guarda.")
+                shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
+                return None
+
+            # Guardado normal
             guardar_datos(datos)
-            print(f"   ✅ OK → {datos.get('tipo_contribuyente','?').upper()} | RFC {datos.get('rfc','?')} | {os.path.join(RUTA_PROCESADOS, archivo)}")
+            destino_pdf = os.path.join(RUTA_PROCESADOS, archivo)
+            shutil.move(ruta_archivo, destino_pdf)
+
+            # Guardar texto extraído
+            ruta_txt = os.path.join(RUTA_PROCESADOS, f"{nombre_sin_ext}_ocr.txt")
+            with open(ruta_txt, 'w', encoding='utf-8') as f:
+                f.write(texto)
+
+            print(f"   ✅ OK → {datos.get('tipo_contribuyente','?').upper()} | RFC {datos.get('rfc','?')} | {destino_pdf}")
             logging.info(f"Procesado correctamente: {archivo}")
         else:
             print(f"   ⚠️ No se extrajeron datos de: {archivo}")
             logging.warning(f"No se extrajeron datos de: {archivo}")
-
-        # 📌 Mover siempre el archivo procesado
-        destino_pdf = os.path.join(RUTA_PROCESADOS, archivo)
-        shutil.move(ruta_archivo, destino_pdf)
-
-        # 📌 Guardar texto extraído en la misma carpeta con sufijo _ocr.txt
-        ruta_txt = os.path.join(RUTA_PROCESADOS, f"{nombre_sin_ext}_ocr.txt")
-        with open(ruta_txt, 'w', encoding='utf-8') as f:
-            f.write(texto)
-        logging.info(f"Texto extraído guardado en: {ruta_txt}")
+            shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
 
     except Exception as e:
         shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
