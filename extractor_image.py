@@ -1,4 +1,4 @@
-import os, re, shutil, time
+import os, re, shutil, time, logging
 from glob import glob
 from typing import List, Tuple, Optional
 
@@ -18,10 +18,20 @@ def conectar():
         port=DB_PORT
     )
 
+def existe_rfc(rfc: Optional[str]) -> bool:
+    if not rfc:
+        return False
+    conexion = conectar()
+    cursor = conexion.cursor()
+    cursor.execute("SELECT 1 FROM constancias WHERE rfc = %s LIMIT 1", (rfc,))
+    existe = cursor.fetchone() is not None
+    cursor.close()
+    conexion.close()
+    return existe
+
 def guardar_datos(datos):
     conexion = conectar()
     cursor = conexion.cursor()
-
     sql = """
         INSERT INTO constancias (
             tipo_contribuyente, rfc, curp, fecha_emision, razon_social,
@@ -32,7 +42,6 @@ def guardar_datos(datos):
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-
     valores = (
         datos['tipo_contribuyente'],
         datos['rfc'],
@@ -49,7 +58,6 @@ def guardar_datos(datos):
         datos.get('archivo_origen'),
         datos.get('fecha_procesado')
     )
-
     cursor.execute(sql, valores)
     conexion.commit()
     cursor.close()
@@ -58,8 +66,19 @@ def guardar_datos(datos):
 # ===============================
 # Carpetas
 # ===============================
-DIR_IN  = "pendientes"
-DIR_OUT = "procesados"
+DIR_IN   = "pendientes"
+DIR_OUT  = "procesados"
+DIR_ERR  = "errores"
+
+# ===============================
+# Logs
+# ===============================
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join("logs", "procesar_imagenes.log"),
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # ===============================
 # Configuración Tesseract
@@ -302,8 +321,10 @@ def extract_from_image(path: str) -> dict:
     img = img.convert("L")
     img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=150))
     img = img.resize((img.width * 2, img.height * 2))
+
     ocr_text = pytesseract.image_to_string(img, lang=LANG)
     lineas = [line.strip() for line in ocr_text.splitlines() if line.strip()]
+
     ctx = {
         "archivo": os.path.basename(path),
         "rfc": None,
@@ -321,6 +342,7 @@ def extract_from_image(path: str) -> dict:
         "regimen_capital": None,
         "nombre_comercial": None
     }
+
     fechas_inline = []
     for linea in lineas:
         if not ctx["rfc"]:
@@ -329,20 +351,27 @@ def extract_from_image(path: str) -> dict:
         if not ctx["curp"]:
             m = REGEX_CURP.search(linea)
             if m: ctx["curp"] = m.group()
+
         m = REGEX_FECHA.search(linea)
         if m:
             fechas_inline.append(m.group())
+
         if ctx["codigo_postal"] is None:
             m = REGEX_CP.search(linea)
             if m: ctx["codigo_postal"] = m.group()
+
         if ctx["estatus_padron"] is None:
             m = REGEX_ESTATUS.search(linea)
             if m: ctx["estatus_padron"] = m.group().upper()
+
     ctx["fecha_emision"] = extraer_fecha_emision(lineas)
+
     if len(fechas_inline) > 1:
         ctx["fecha_inicio"] = fechas_inline[1]
+
     tipo = detectar_tipo_entidad(lineas)
     ctx["tipo_contribuyente"] = tipo
+
     if tipo == "MORAL":
         parse_moral(lineas, ctx)
         ctx["nombre"] = ctx["apellido_paterno"] = ctx["apellido_materno"] = None
@@ -350,6 +379,7 @@ def extract_from_image(path: str) -> dict:
     else:
         parse_fisica(lineas, ctx)
         ctx["modo"] = (ctx["modo"] or "fisica").upper()
+
     ctx["_ocr_text"] = ocr_text
     return ctx
 
@@ -372,6 +402,7 @@ def convert_to_webp(img_path: str, quality: int = 80) -> str:
         return webp_path
     except Exception as e:
         print(f"   ⚠️ No se pudo convertir a WebP ({img_path}): {e}")
+        logging.warning(f"No se pudo convertir a WebP ({img_path}): {e}")
         return img_path
 
 def purge_processed(retention_days: int = 7, base_dir: str = DIR_OUT):
@@ -394,18 +425,41 @@ def purge_processed(retention_days: int = 7, base_dir: str = DIR_OUT):
 def main():
     os.makedirs(DIR_IN, exist_ok=True)
     os.makedirs(DIR_OUT, exist_ok=True)
+    os.makedirs(DIR_ERR, exist_ok=True)
+
     imgs = []
     for pat in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
         imgs.extend(glob(os.path.join(DIR_IN, pat)))
+
     if not imgs:
         print(f"❌ No hay imágenes en '{DIR_IN}'")
+        logging.info("No hay imágenes para procesar.")
         purge_processed(retention_days=7, base_dir=DIR_OUT)
         return
+
     for path in imgs:
         fname = os.path.basename(path)
         print(f"↪ Procesando: {fname} ...")
+        logging.info(f"Inicia procesamiento imagen: {fname}")
+
         try:
             data = extract_from_image(path)
+
+            # Validaciones mínimas
+            if not data.get("rfc"):
+                print(f"   ⚠️ No se detectó RFC en: {fname}")
+                logging.warning(f"No se detectó RFC en {fname}")
+                shutil.move(path, os.path.join(DIR_ERR, fname))
+                continue
+
+            # Duplicado por RFC
+            if existe_rfc(data["rfc"]):
+                print(f"   ⚠️ RFC duplicado, se mueve a errores: {data['rfc']}")
+                logging.warning(f"Duplicado detectado para RFC {data['rfc']} ({fname}), no se guarda.")
+                shutil.move(path, os.path.join(DIR_ERR, fname))
+                continue
+
+            # Guardar en BD
             guardar_datos({
                 'tipo_contribuyente': data['tipo_contribuyente'],
                 'rfc': data['rfc'],
@@ -422,15 +476,28 @@ def main():
                 'archivo_origen': data.get('archivo'),
                 'fecha_procesado': time.strftime('%Y-%m-%d %H:%M:%S')
             })
+
+            # Mover a procesados y generar _ocr.txt
             new_path = os.path.join(DIR_OUT, fname)
             shutil.move(path, new_path)
+
             new_path = convert_to_webp(new_path, quality=80)
             debug_txt = os.path.splitext(new_path)[0] + "_ocr.txt"
             with open(debug_txt, "w", encoding="utf-8") as f:
                 f.write(data["_ocr_text"])
+
             print(f"   ✅ OK → {data.get('tipo_contribuyente','?')} | RFC {data.get('rfc','?')} | {new_path}")
+            logging.info(f"Procesado correctamente {fname} | RFC {data.get('rfc','?')}")
+
         except Exception as e:
-            print(f"   ⚠️ Error con {fname}: {e}")
+            # Mover a errores y registrar
+            try:
+                shutil.move(path, os.path.join(DIR_ERR, fname))
+            except Exception:
+                pass
+            print(f"   ❌ Error crítico con {fname}: {e}")
+            logging.error(f"Error crítico procesando {fname}: {e}")
+
     purge_processed(retention_days=7, base_dir=DIR_OUT)
     print("🏁 Listo.")
 
