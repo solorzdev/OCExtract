@@ -5,7 +5,24 @@ import pdfplumber
 import re
 import os
 import datetime
+import shutil
+import logging
 from wordsegment import load, segment
+from database import guardar_datos, existe_rfc
+
+# === Configuración de logs ===
+os.makedirs('logs', exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join('logs', 'procesar_pdf.log'),
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# === Carpetas de salida ===
+RUTA_PROCESADOS = 'procesados'
+RUTA_ERRORES = 'errores'
+os.makedirs(RUTA_PROCESADOS, exist_ok=True)
+os.makedirs(RUTA_ERRORES, exist_ok=True)
 
 # Inicializar el modelo de segmentación
 load()
@@ -74,7 +91,6 @@ def extraer_campo_regex(texto, etiqueta):
         return valor
     return None
 
-
 def extraer_fecha_emision(texto):
     lineas = texto.splitlines()
     meses = {
@@ -84,7 +100,6 @@ def extraer_fecha_emision(texto):
         'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
     }
 
-    # 1. Multilínea: "A 07 DE" + siguiente línea "ENERO DE 2020"
     for i in range(len(lineas) - 1):
         l1 = lineas[i].strip()
         if re.search(r'A \d{1,2} DE$', l1):
@@ -97,7 +112,6 @@ def extraer_fecha_emision(texto):
                     anio = match2.group(2)
                     return f"{dia}/{mes}/{anio}"
 
-    # 2. Todo en una línea
     for l in lineas:
         match = re.search(r'A (\d{1,2}) DE ([A-ZÑÁÉÍÓÚ]+) DE (\d{4})', l, re.IGNORECASE)
         if match:
@@ -106,7 +120,6 @@ def extraer_fecha_emision(texto):
             anio = match.group(3)
             return f"{dia}/{mes}/{anio}"
 
-    # 3. Texto unido tolerante a ruido entre "A 07 DE" y "ENERO DE 2020"
     texto_unido = texto.replace('\n', ' ')
     match = re.search(
         r'A (\d{1,2}) DE .*? ([A-ZÑÁÉÍÓÚ]+) DE (\d{4})',
@@ -121,21 +134,6 @@ def extraer_fecha_emision(texto):
 
     return None
 
-def normalizar_fecha(fecha_texto):
-    meses = {
-        'ENERO': '01', 'FEBRERO': '02', 'MARZO': '03', 'ABRIL': '04',
-        'MAYO': '05', 'JUNIO': '06', 'JULIO': '07', 'AGOSTO': '08',
-        'SEPTIEMBRE': '09', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
-    }
-    partes = fecha_texto.upper().split(' DE ')
-    if len(partes) == 3:
-        dia = partes[0].zfill(2)
-        mes = meses.get(partes[1], '01')
-        anio = partes[2]
-        return f"{dia}/{mes}/{anio}"
-    return fecha_texto
-
-# === Código postal ===
 def extraer_codigo_postal(texto):
     indice = texto.find('CódigoPostal:')
     if indice == -1:
@@ -145,7 +143,6 @@ def extraer_codigo_postal(texto):
     valor = texto[inicio:fin]
     return valor.strip()
 
-# === Extrae y limpia todos los datos ===
 def extraer_datos(texto):
     datos = {}
     datos['rfc'] = extraer_valor_simple(texto, 'RFC: ')
@@ -153,25 +150,23 @@ def extraer_datos(texto):
 
     razon_social = extraer_valor_simple(texto, 'Denominación/RazónSocial:')
     if razon_social:
-        datos['tipo_contribuyente'] = 'empresa'
+        datos['tipo_contribuyente'] = 'MORAL'
         datos['razon_social'] = razon_social
         datos['regimen_capital'] = extraer_valor_simple(texto, 'RégimenCapital:')
         datos['nombre_comercial'] = extraer_valor_simple(texto, 'NombreComercial:')
         if datos['nombre_comercial'] == '':
             datos['nombre_comercial'] = None
-
         datos['nombre'] = None
         datos['apellido_paterno'] = None
         datos['apellido_materno'] = None
     else:
-        datos['tipo_contribuyente'] = 'persona'
+        datos['tipo_contribuyente'] = 'FISICA'
         datos['razon_social'] = None
         datos['regimen_capital'] = None
         datos['nombre_comercial'] = None
         datos['nombre'] = extraer_campo_regex(texto, r'Nombre\s*\(s\)\s*:')
         if datos['nombre'] and ' ' not in datos['nombre']:
             datos['nombre'] = ' '.join(n.upper() for n in segment(datos['nombre'].lower()))
-
         datos['curp'] = extraer_valor_simple(texto, 'CURP:')
         datos['apellido_paterno'] = extraer_valor_simple(texto, 'PrimerApellido:')
         datos['apellido_materno'] = extraer_valor_simple(texto, 'SegundoApellido:')
@@ -180,31 +175,63 @@ def extraer_datos(texto):
     datos['codigo_postal'] = extraer_codigo_postal(texto)
 
     if datos['rfc'] is None or datos['fecha_emision'] is None:
-        print("⚠️ Faltan datos esenciales:", datos)
         return None
 
-    # Corrección inteligente para campos pegados
     for campo in ['razon_social', 'regimen_capital', 'nombre_comercial', 'nombre']:
         if datos.get(campo):
             datos[campo] = separar_palabras_mayusculas(datos[campo])
 
     return datos
 
-# === Proceso principal ===
 def procesar_archivo(ruta_archivo):
-    extension = os.path.splitext(ruta_archivo)[1].lower()
-    if extension == '.pdf':
-        texto = extraer_texto_pdf(ruta_archivo)
-    elif extension in ['.png', '.jpg', '.jpeg']:
-        texto = extraer_texto_imagen(ruta_archivo)
-    else:
-        return None
+    archivo = os.path.basename(ruta_archivo)
+    nombre_sin_ext, _ = os.path.splitext(archivo)
 
-    with open('texto_extraido.txt', 'w', encoding='utf-8') as f:
-        f.write(texto)
+    print(f"↪ Procesando: {archivo} ...")
+    logging.info(f"Iniciando procesamiento de {archivo}")
 
-    datos = extraer_datos(texto)
-    if datos:
-        datos['archivo_origen'] = os.path.basename(ruta_archivo)
-        datos['fecha_procesado'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    return datos
+    try:
+        extension = os.path.splitext(ruta_archivo)[1].lower()
+        if extension == '.pdf':
+            texto = extraer_texto_pdf(ruta_archivo)
+        elif extension in ['.png', '.jpg', '.jpeg']:
+            texto = extraer_texto_imagen(ruta_archivo)
+        else:
+            logging.warning(f"Extensión no soportada: {archivo}")
+            return None
+
+        datos = extraer_datos(texto)
+        if datos:
+            datos['archivo_origen'] = archivo
+            datos['fecha_procesado'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # 📌 Verificación de RFC duplicado
+            if existe_rfc(datos['rfc']):
+                print(f"   ⚠️ RFC duplicado, se mueve a errores: {datos['rfc']}")
+                logging.warning(f"Duplicado detectado para RFC {datos['rfc']}, no se guarda.")
+                shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
+                return None
+
+            # Guardado normal
+            guardar_datos(datos)
+            destino_pdf = os.path.join(RUTA_PROCESADOS, archivo)
+            shutil.move(ruta_archivo, destino_pdf)
+
+            # Guardar texto extraído
+            ruta_txt = os.path.join(RUTA_PROCESADOS, f"{nombre_sin_ext}_ocr.txt")
+            with open(ruta_txt, 'w', encoding='utf-8') as f:
+                f.write(texto)
+
+            print(f"   ✅ OK → {datos.get('tipo_contribuyente','?').upper()} | RFC {datos.get('rfc','?')} | {destino_pdf}")
+            logging.info(f"Procesado correctamente: {archivo}")
+        else:
+            print(f"   ⚠️ No se extrajeron datos de: {archivo}")
+            logging.warning(f"No se extrajeron datos de: {archivo}")
+            shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
+
+    except Exception as e:
+        shutil.move(ruta_archivo, os.path.join(RUTA_ERRORES, archivo))
+        print(f"   ❌ Error crítico con {archivo}: {e}")
+        logging.error(f"Error crítico en {archivo}: {e}")
+
+    return None
