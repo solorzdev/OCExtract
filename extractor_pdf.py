@@ -9,6 +9,8 @@ import shutil
 import logging
 from wordsegment import load, segment
 from database import guardar_datos, existe_rfc
+from datetime import datetime
+
 
 # === Configuración de logs ===
 os.makedirs('logs', exist_ok=True)
@@ -203,7 +205,15 @@ def procesar_archivo(ruta_archivo):
         datos = extraer_datos(texto)
         if datos:
             datos['archivo_origen'] = archivo
-            datos['fecha_procesado'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # Normalizar fecha_emision (formato compatible con SQL Server)
+            try:
+                datos['fecha_emision'] = datetime.strptime(datos['fecha_emision'], "%d/%m/%Y").date()
+            except:
+                datos['fecha_emision'] = None
+
+            datos['fecha_procesado'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
 
             # 📌 Verificación de RFC duplicado
             if existe_rfc(datos['rfc']):

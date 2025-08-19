@@ -4,34 +4,43 @@ from typing import List, Tuple, Optional
 
 import pytesseract
 from PIL import Image, ImageFilter
+from datetime import datetime
+from datetime import datetime
+
 
 # 🔹 Conexión usando config.py
-import mysql.connector
-from config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
+import pyodbc
 
 def conectar():
-    return mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        port=DB_PORT
+    return pyodbc.connect(
+        "DRIVER={ODBC Driver 17 for SQL Server};"
+        "SERVER=localhost;"
+        "DATABASE=extractinfo;"
+        "Trusted_Connection=yes;"
     )
 
 def existe_rfc(rfc: Optional[str]) -> bool:
     if not rfc:
         return False
-    conexion = conectar()
-    cursor = conexion.cursor()
-    cursor.execute("SELECT 1 FROM constancias WHERE rfc = %s LIMIT 1", (rfc,))
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM constancias WHERE rfc = ?;", (rfc,))
     existe = cursor.fetchone() is not None
     cursor.close()
-    conexion.close()
+    conn.close()
     return existe
 
 def guardar_datos(datos):
-    conexion = conectar()
-    cursor = conexion.cursor()
+    conn = conectar()
+    cursor = conn.cursor()
+
+    # Asegurar que la fecha sea tipo DATE
+    from datetime import datetime
+    try:
+        datos['fecha_emision'] = datetime.strptime(datos['fecha_emision'], "%d/%m/%Y").date()
+    except:
+        datos['fecha_emision'] = None
+
     sql = """
         INSERT INTO constancias (
             tipo_contribuyente, rfc, curp, fecha_emision, razon_social,
@@ -40,8 +49,9 @@ def guardar_datos(datos):
             estatus_padron, codigo_postal,
             archivo_origen, fecha_procesado
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
+
     valores = (
         datos['tipo_contribuyente'],
         datos['rfc'],
@@ -58,10 +68,11 @@ def guardar_datos(datos):
         datos.get('archivo_origen'),
         datos.get('fecha_procesado')
     )
+
     cursor.execute(sql, valores)
-    conexion.commit()
+    conn.commit()
     cursor.close()
-    conexion.close()
+    conn.close()
 
 # ===============================
 # Carpetas
@@ -458,6 +469,12 @@ def main():
                 logging.warning(f"Duplicado detectado para RFC {data['rfc']} ({fname}), no se guarda.")
                 shutil.move(path, os.path.join(DIR_ERR, fname))
                 continue
+            
+            try:
+                data['fecha_emision'] = datetime.strptime(data['fecha_emision'], "%d/%m/%Y").date()
+            except:
+                data['fecha_emision'] = None
+
 
             # Guardar en BD
             guardar_datos({
