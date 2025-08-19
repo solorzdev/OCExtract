@@ -8,11 +8,11 @@ Diseñado para **procesamiento por lotes**, sin depender de etiquetas fijas (se 
 ## Requisitos del sistema
 
 - **Python 3.10+**
-- **MySQL 8+** o **MariaDB 10.5+**
-- **Tesseract OCR** instalado en el sistema
+- **Microsoft SQL Server 2017+**
+- **Tesseract OCR** instalado en el sistema  
   - Debe incluir el **paquete de idioma español (`spa`)**.
 
-> La base de datos se llama **`extractinfo`** y la tabla principal es **`constancias`** (ver `db/schema.sql`). :contentReference[oaicite:0]{index=0}
+> La base de datos se llama **`extractinfo`** y la tabla principal es **`constancias`** (ver `db/schema.sql`).
 
 ---
 
@@ -25,14 +25,15 @@ Diseñado para **procesamiento por lotes**, sin depender de etiquetas fijas (se 
 - `PyMuPDF` (`fitz`) – render/parse de PDFs
 - `opencv-python` (`cv2`) – preprocesado de imágenes (binarización, etc.)
 - `wordsegment` – separar palabras pegadas
-- `mysql-connector-python` – conexión a MySQL
-
-> Estas son las usadas actualmente en el proyecto. :contentReference[oaicite:1]{index=1}
+- `pyodbc` – conexión a SQL Server
 
 **Opcional recomendado:**
 - `python-dotenv` – para leer variables de entorno desde `.env` (si decides usarlo).
 
+---
+
 ### Instalación rápida de dependencias
+
 ```bash
 python -m venv .venv
 # Windows:
@@ -40,33 +41,4 @@ python -m venv .venv
 # Linux/Mac:
 source .venv/bin/activate
 
-pip install pytesseract Pillow pdfplumber PyMuPDF opencv-python wordsegment mysql-connector-python python-dotenv
-
-```
-
-
-Instalar Tesseract OCR
-
-Windows: instalador de UB Mannheim (incluye binarios actualizados).
-
-Linux (Debian/Ubuntu):
-    sudo apt-get update
-    sudo apt-get install -y tesseract-ocr tesseract-ocr-spa
-
-
-Ruta de Tesseract y tessdata (solo si tu entorno lo requiere)
-En Windows, típicamente:
-
-    TESSERACT_CMD="C:\Program Files\Tesseract-OCR\tesseract.exe"
-    TESSDATA_PREFIX="C:\Program Files\Tesseract-OCR\tessdata"
-
-Agrega este bloque al inicio de tu módulo OCR (donde importas pytesseract), por ejemplo en src/extractor.py:
-
-import os, pytesseract
-# Usa variables de entorno si existen; si no, define valores por defecto (Windows como ejemplo)
-pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD") or r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-os.environ["TESSDATA_PREFIX"] = os.getenv("TESSDATA_PREFIX") or r"C:\Program Files\Tesseract-OCR\tessdata"
-# Idioma por defecto
-TESS_LANG = os.getenv("TESS_LANG", "spa")
-# y luego úsalo:
-# texto = pytesseract.image_to_string(imagen, lang=TESS_LANG)
+pip install pytesseract Pillow pdfplumber PyMuPDF opencv-python wordsegment pyodbc python-dotenv
