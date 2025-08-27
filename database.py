@@ -1,59 +1,62 @@
+# -*- coding: utf-8 -*-
 import pyodbc
+from config import DB_SERVER, DB_DATABASE, DB_USER, DB_PASSWORD, DB_DRIVER, TABLE_ARCHIVO
 
-# Configuración de conexión local a SQL Server
 def conectar():
-    return pyodbc.connect(
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=localhost;"
-        "DATABASE=extractinfo;"
-        "Trusted_Connection=yes;"
+    conn_str = (
+        f"DRIVER={{{DB_DRIVER}}};SERVER={DB_SERVER};DATABASE={DB_DATABASE};"
+        f"UID={DB_USER};PWD={DB_PASSWORD}"
     )
+    return pyodbc.connect(conn_str)
 
-# Guardar datos extraídos en SQL Server
-def guardar_datos(datos):
-    conn = conectar()
-    cursor = conn.cursor()
-
-    sql = """
-        INSERT INTO constancias (
-            tipo_contribuyente, rfc, curp, fecha_emision, razon_social,
-            regimen_capital, nombre_comercial,
-            nombre, apellido_paterno, apellido_materno,
-            estatus_padron, codigo_postal,
-            archivo_origen, fecha_procesado
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+def update_archivo_opinion(archivo_id: int, modulo_id: int, datos: dict, marcar_procesado: bool = True) -> int:
     """
+    Actualiza campos de Opinión de Cumplimiento en [dbo].[Archivo]
+    usando ArchivoID + ArchivoModuloID (1017 para OC).
 
-    valores = (
-        datos['tipo_contribuyente'],
-        datos['rfc'],
-        datos.get('curp'),
-        datos['fecha_emision'],
-        datos.get('razon_social'),
-        datos.get('regimen_capital'),
-        datos.get('nombre_comercial'),
-        datos.get('nombre'),
-        datos.get('apellido_paterno'),
-        datos.get('apellido_materno'),
-        datos['estatus_padron'],
-        datos['codigo_postal'],
-        datos.get('archivo_origen'),
-        datos.get('fecha_procesado')
-    )
+    datos = {
+        'rfc', 'razon_social', 'folio', 'sentido',
+        'fecha_emision'(date), 'hora_emision'(time),
+        'cadena_original'(str)
+    }
+    Devuelve número de filas afectadas.
+    """
+    sets, vals = [], []
 
-    cursor.execute(sql, valores)
-    conn.commit()
-    cursor.close()
-    conn.close()
+    # Reutilizados
+    if datos.get('rfc') is not None:
+        sets.append("RFC = ?");                 vals.append(datos['rfc'])
+    if datos.get('razon_social') is not None:
+        sets.append("RazonSocial = ?");         vals.append(datos['razon_social'])
+    if datos.get('fecha_emision') is not None:
+        sets.append("FechaEmision = ?");        vals.append(datos['fecha_emision'])
 
-def existe_rfc(rfc: str) -> bool:
-    conn = conectar()
-    cursor = conn.cursor()
+    # Nuevos de OC
+    if datos.get('folio') is not None:
+        sets.append("OpinionFolio = ?");        vals.append(datos['folio'])
+    if datos.get('sentido') is not None:
+        sets.append("OpinionSentido = ?");      vals.append(datos['sentido'])
+    if datos.get('hora_emision') is not None:
+        sets.append("OpinionHoraEmision = ?");  vals.append(datos['hora_emision'])
+    if datos.get('cadena_original') is not None:
+        sets.append("OpinionCadenaOriginal = ?"); vals.append(datos['cadena_original'])
 
-    cursor.execute("SELECT COUNT(*) FROM constancias WHERE rfc = ?", (rfc,))
-    resultado = cursor.fetchone()[0]
+    if marcar_procesado:
+        sets.append("Procesado = 1")
+        sets.append("FechaProcesado = SYSDATETIME()")
 
-    cursor.close()
-    conn.close()
-    return resultado > 0
+    if not sets:
+        return 0  # nada que actualizar
+
+    sql = f"""
+        UPDATE [dbo].[{TABLE_ARCHIVO}]
+        SET {", ".join(sets)}
+        WHERE ArchivoID = ? AND ArchivoModuloID = ?
+    """
+    vals.extend([archivo_id, modulo_id])
+
+    with conectar() as cn, cn.cursor() as cur:
+        cur.execute(sql, tuple(vals))
+        rows = cur.rowcount or 0
+        cn.commit()
+        return rows

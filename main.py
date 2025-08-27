@@ -1,29 +1,25 @@
+# -*- coding: utf-8 -*-
 import os
+from config import PENDIENTES_DIR
 from extractor_pdf import procesar_archivo as procesar_pdf
-import subprocess
+from extractor_image import procesar_imagen
 
-RUTA_ENTRADA = 'pendientes'
 EXT_PDF = ('.pdf',)
-EXT_IMG = ('.jpg', '.jpeg', '.png', '.tif', '.tiff')
+EXT_IMG = ('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp')
 
 def main():
+    os.makedirs(PENDIENTES_DIR, exist_ok=True)
     archivos = [
-        os.path.join(RUTA_ENTRADA, f)
-        for f in os.listdir(RUTA_ENTRADA)
-        if os.path.isfile(os.path.join(RUTA_ENTRADA, f))
+        os.path.join(PENDIENTES_DIR, f)
+        for f in os.listdir(PENDIENTES_DIR)
+        if os.path.isfile(os.path.join(PENDIENTES_DIR, f))
     ]
 
-    # PDFs primero
-    pdfs = [a for a in archivos if a.lower().endswith(EXT_PDF)]
-    if pdfs:
-        for pdf in pdfs:
-            procesar_pdf(pdf)  # Usa el flujo PDF normal
+    for pdf in [a for a in archivos if a.lower().endswith(EXT_PDF)]:
+        procesar_pdf(pdf)
 
-    # Luego imágenes
-    imagenes = [a for a in archivos if a.lower().endswith(EXT_IMG)]
-    if imagenes:
-        # Llama al script de imágenes y le pasa las rutas como argumentos
-        subprocess.run(["python", "extractor_image.py", *imagenes])
+    for img in [a for a in archivos if a.lower().endswith(EXT_IMG)]:
+        procesar_imagen(img)
 
 if __name__ == '__main__':
     main()
